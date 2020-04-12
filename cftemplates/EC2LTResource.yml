@@ -1,0 +1,136 @@
+---
+Description:  Launch Template Setup-
+  Create a Launch template to create EC2 instances
+Parameters:
+  AMIId:  
+    Description: AMI ID being used
+    Type: String
+    Default: 'ami-0fc61db8544a617ed'
+  S3BucketName:  
+    Description: S3 Bucket for bootsrap script.
+    Type: String
+    Default: 'projectssamples'
+  LaunchTemplateName:  
+    Description: Name of Launch Template
+    Type: String
+    Default: 'private-lt-1'
+  IamInstanceProfile:
+    Description: Instance Profile
+    Type: String
+  InstanceType:
+    Description: Instance type
+    Type: String
+    Default: t3.micro
+  KeyName:
+    Description: Key Pair name for SSH login
+    Type: String
+    Default: 'revtest'
+
+  RootVolumeSize:
+    Description: Size of root volume, default 20 GB
+    Type: String
+    Default: 10
+  RootVolumeName:
+    Description: Name of the root volume device, /dev/xvda
+    Type: String
+    Default: /dev/xvda
+  RootVolumeType:
+    Description: Type of volumes i.e. gp2, magnetic (standard) etc. io1 is not permitted
+    Type: String
+    Default: standard
+    AllowedValues:
+      - standard
+      - gp2
+  NonRootVolumeSize1:
+    Description: The non root EBS volume size
+      If set to 0 no non-volume is created.
+    Type: Number
+    Default: 0
+  NonRootVolumeName1:
+    Description: Non root volume name, Use NONE for no additional volume
+    Type: String
+    Default: /dev/xvdf
+  NonRootVolumeType1:
+    Description: Type of volumes i.e. gp2, magnetic (standard) etc. io1 is not permitted
+    Type: String
+    Default: standard
+    AllowedValues:
+      - standard
+      - gp2
+  AssociatePublicIP:
+    Description: Assign public IP (only usefule if it is a public subnet)
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'  
+  SecurityGroupIds:
+    Description: List of Security Group Ids
+    Type: CommaDelimitedList
+  SubnetId:
+    Description: Subnet Id to use
+    Type: String
+  UserData:
+    Description: Run a bootstrap script if any
+    Type: String
+    Default: NONE
+Conditions:
+  CreateNonRootVolume1: !Not
+    - !Equals
+      - !Ref NonRootVolumeSize1
+      - 0  
+  IsPublicSubnet: !Equals
+    - !Ref AssociatePublicIP
+    - true 
+  IsUserDataScriptProvided: !Not
+    - !Equals
+      - !Ref UserData
+      - NONE  
+Resources:
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Ref LaunchTemplateName
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: !Ref RootVolumeName
+            Ebs:
+              VolumeSize: !Ref RootVolumeSize
+              VolumeType: !Ref RootVolumeType
+              DeleteOnTermination: true
+          - !If
+            - CreateNonRootVolume1
+            - DeviceName: NonRootVolumeName1
+              Ebs:
+                 VolumeSize: !Ref NonRootVolumeSize1
+                 VolumeType: !Ref NonRootVolumeType1
+                 DeleteOnTermination: true
+            - !Ref 'AWS::NoValue'
+        IamInstanceProfile: 
+          Name: !Ref IamInstanceProfile      
+        ImageId: !Ref AMIId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        NetworkInterfaces:
+          - AssociatePublicIpAddress:  !Ref AssociatePublicIP
+              # IsPublicSubnet
+              # true
+              # false  
+            DeleteOnTermination: true
+            DeviceIndex: 0
+            Groups: !Ref SecurityGroupIds
+            SubnetId: !Ref SubnetId
+            UserData: !If 
+              - IsUserDataScriptProvided
+              - !Ref UserData
+              - !Ref 'AWS::NoValue'
+Outputs:
+  EC2LTName: 
+    Description: Name of EC2 Launch Template
+    Value: !Ref LaunchTemplateName
+  EC2LTId:
+    Description: The Id of the EC2 Launch Template
+    Value: !Ref EC2LaunchTemplate
+  EC2LTLatestVersion:
+    Description: The  
+    Value: !GetAtt EC2LaunchTemplate.LatestVersionNumber

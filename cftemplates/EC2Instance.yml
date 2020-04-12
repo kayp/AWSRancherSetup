@@ -1,0 +1,43 @@
+---
+Description: EC2 Instance Creation 
+  Create an EC2 instance from a Launch Template
+Parameters:
+  LaunchTemplateName:  
+    Description: Name of Launch Template
+    Type: String
+    Default: 'private-lt-1'
+  LaunchTemplateVersion:  
+    Description: Name of Launch Template
+    Type: String
+    Default: "1"
+  PrintPublicIp:  
+    Description: Should Public IP be publiched
+      (if a public IP has been assigned)
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"  
+Conditions:
+  IsPublicIpPublished: !Equals
+    - !Ref PrintPublicIp
+    - "true"  
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateName: !Ref LaunchTemplateName
+        Version: !Ref LaunchTemplateVersion
+Outputs: 
+  EC2InstanceId:
+    Description: Name of EC2 Instance Id
+    Value: !Ref EC2Instance
+  EC2InstancePrivateIp:
+    Description: Private IP of EC2 Instance
+    Value: !GetAtt EC2Instance.PrivateIp
+  EC2InstancePublicIp:
+    Condition: IsPublicIpPublished     
+    Description: Public IP of EC2 Instance
+    Value: !GetAtt EC2Instance.PublicIp
